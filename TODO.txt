@@ -1,0 +1,10 @@
+Bot
+-Listen for a message 
+-Use RAG to look up a relevent conversation 
+-Response like Jadon 
+
+History scraper 
+-Pull all chat History
+-Seperate by time stamp 
+-Embed with Open AI
+-Store in database

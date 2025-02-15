@@ -10,19 +10,19 @@ const db = pgp({
   //ssl: { rejectUnauthorized: false }
 })
 
-const OpenAI = require('openai')
-const openai = new OpenAI()
+// const OpenAI = require('openai')
+// const openai = new OpenAI()
 
-async function embedConversation(text, id){
-    //Embed 
-    const response = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: text,
-        encoding_format: "float",
-    })
-    //Store in database
-    await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
-}
+// async function embedConversation(text, id){
+//     //Embed 
+//     const response = await openai.embeddings.create({
+//         model: "text-embedding-3-small",
+//         input: text,
+//         encoding_format: "float",
+//     })
+//     //Store in database
+//     await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
+// }
 
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 
@@ -45,7 +45,7 @@ client.on('messageCreate', async (interaction) => {
         let lastMessageId = null;
             
         // Fetch messages in batches of 100
-        while(true) {
+        for(let i = 0; i < 5; i++) {
             const options = { limit: 100 };
             if (lastMessageId) {
                 options.before = lastMessageId;
@@ -54,13 +54,34 @@ client.on('messageCreate', async (interaction) => {
             const messages = await interaction.channel.messages.fetch(options);
             if (messages.size === 0) break;
 
+            let prevHour = -1
+            let tempMessages = []
+            let groupedText = []
+            messages.forEach((msg) => {
+              let currHour = msg.createdAt.getHours()
+              if(currHour === prevHour){
+                groupedText.push({'Author': msg.author.tag, 'Content': msg.content})
+              } else {
+                if(groupedText.length !== 0){
+                  tempMessages.push(groupedText)
+                }
+                groupedText = []
+                prevHour = currHour
+              }
+            })
+
             allMessages.push(...messages.values());
             lastMessageId = messages.last().id;
 
             const printable = []
             printable.push(...messages.values());
             printable.reverse().forEach((msg) => {
-              console.log(`${msg.author.tag}: ${msg.content}`);
+              console.log(`${msg.author.tag}: ${msg.content}: ${msg.createdAt}`);
+            });
+
+            // messages that hold grouped author and corresponding content values
+            tempMessages.forEach((msgs) => {
+              console.log(msgs);
             });
         }
 

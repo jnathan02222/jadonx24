@@ -27,25 +27,38 @@ client.on(Events.ClientReady, readyClient => {
   console.log(`Logged in as ${readyClient.user.tag}!`);
 });
 
-client.on(Events.InteractionCreate, async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+client.on('messageCreate', async (interaction) => {
 
-  if (interaction.commandName === 'speak') {
+    if (interaction.content.includes('JadonX24')) {
+        const message = interaction.content
+        
+        //Embed message
+        const response = await openai.embeddings.create({
+            model: "text-embedding-3-small",
+            input: message,
+            encoding_format: "float",
+        })
 
-    const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-            { role: "developer", content: "You are a helpful assistant." },
-            {
-                role: "user",
-                content: interaction.content,
-            },
-        ],
-        store: true,
-    });
+        const relevantMessageId = (await db.one(`SELECT id FROM embeddings ORDER BY embedding <=> '[${response.data[0].embedding.toString()}]' LIMIT 1`)).id
+        
+        const context = [] 
+        const relevantMessage = await interaction.channel.messages.fetch({ limit: 100, before : relevantMessageId });
+        context.push(...relevantMessage.values())
 
-    await interaction.reply(completion.choices[0].message);
-  }
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                { role: "developer", content: `You are jadonx_. This is a snippet of relevant conversation you have had in the past: ${context.map(msg => `${msg}\n`)}. Based on your past chat history, respond to the user's prompt.` },
+                {
+                    role: "user",
+                    content: message,
+                },
+            ],
+            store: true,
+        });
+
+        await interaction.reply(completion.choices[0].message);
+    }
 });
 
 client.login(TOKEN);

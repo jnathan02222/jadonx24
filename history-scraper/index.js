@@ -10,19 +10,19 @@ const db = pgp({
   //ssl: { rejectUnauthorized: false }
 })
 
-// const OpenAI = require('openai')
-// const openai = new OpenAI()
+const OpenAI = require('openai')
+const openai = new OpenAI()
 
-// async function embedConversation(text, id){
-//     //Embed 
-//     const response = await openai.embeddings.create({
-//         model: "text-embedding-3-small",
-//         input: text,
-//         encoding_format: "float",
-//     })
-//     //Store in database
-//     await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
-// }
+async function embedConversation(text, id){
+    //Embed 
+    const response = await openai.embeddings.create({
+        model: "text-embedding-3-small",
+        input: text,
+        encoding_format: "float",
+    })
+    //Store in database
+    await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
+}
 
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 
@@ -54,22 +54,22 @@ client.on('messageCreate', async (interaction) => {
             const messages = await interaction.channel.messages.fetch(options);
             if (messages.size === 0) break;
 
-            let prevHour = -1
+            let prevTime = -1
             let tempMessages = []
             let groupedText = []
+            
             messages.forEach((msg) => {
-              let currHour = msg.createdAt.getHours()
-              if(currHour === prevHour){
+              let currTime = msg.createdAt.getDay()*24*60 + msg.createdAt.getHours() * 60 + msg.createdAt.getMinutes()
+              if(currTime >= prevTime - 30){
                 groupedText.push({'Author': msg.author.tag, 'Content': msg.content})
               } else {
                 if(groupedText.length !== 0){
                   tempMessages.push(groupedText)
                 }
                 groupedText = []
-                prevHour = currHour
               }
+              prevTime = currTime
             })
-
             allMessages.push(...messages.values());
             lastMessageId = messages.last().id;
 

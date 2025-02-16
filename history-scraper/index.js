@@ -10,19 +10,19 @@ const db = pgp({
   //ssl: { rejectUnauthorized: false }
 })
 
-const OpenAI = require('openai')
-const openai = new OpenAI()
+// const OpenAI = require('openai')
+// const openai = new OpenAI()
 
-async function embedConversation(text, id){
-    //Embed 
-    const response = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: text,
-        encoding_format: "float",
-    })
-    //Store in database
-    await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
-}
+// async function embedConversation(text, id){
+//     //Embed 
+//     const response = await openai.embeddings.create({
+//         model: "text-embedding-3-small",
+//         input: text,
+//         encoding_format: "float",
+//     })
+//     //Store in database
+//     await db.none(`INSERT INTO embeddings VALUES ('${id}', '[${response.data[0].embedding.toString()}]')`)
+// }
 
 const { Client, Events, GatewayIntentBits } = require('discord.js');
 
@@ -41,56 +41,44 @@ client.on(Events.ClientReady, readyClient => {
 //Get conversation history, break into chunks
 client.on('messageCreate', async (interaction) => {
     if (interaction.content === 'history') {
-        let allMessages = [];
-        let lastMessageId = null;
-            
-        // Fetch messages in batches of 100
-        for(let i = 0; i < 5; i++) {
-            const options = { limit: 100 };
-            if (lastMessageId) {
-                options.before = lastMessageId;
-            }
-
-            const messages = await interaction.channel.messages.fetch(options);
-            if (messages.size === 0) break;
-
-            let prevTime = -1
-            let tempMessages = []
-            let groupedText = []
-            
-            messages.forEach((msg) => {
-              let currTime = msg.createdAt.getDay()*24*60 + msg.createdAt.getHours() * 60 + msg.createdAt.getMinutes()
-              if(currTime >= prevTime - 30){
-                groupedText.push({'Author': msg.author.tag, 'Content': msg.content})
-              } else {
-                if(groupedText.length !== 0){
-                  tempMessages.push(groupedText)
-                }
-                groupedText = []
-              }
-              prevTime = currTime
-            })
-            allMessages.push(...messages.values());
-            lastMessageId = messages.last().id;
-
-            const printable = []
-            printable.push(...messages.values());
-            printable.reverse().forEach((msg) => {
-              console.log(`${msg.author.tag}: ${msg.content}: ${msg.createdAt}`);
-            });
-
-            // messages that hold grouped author and corresponding content values
-            tempMessages.forEach((msgs) => {
-              console.log(msgs);
-            });
+      let allMessages = [];
+      let groupedText = []
+      let lastMessageId = null;
+      let prevTime = null
+          
+      // Fetch messages in batches of 100
+      for(let i = 0; i < 10; i++) {
+        const options = { limit: 100 };
+        if (lastMessageId) {
+          options.before = lastMessageId;
         }
 
-        // Log all messages
-        // allMessages.reverse().forEach((msg) => {
-        //     console.log(`${msg.author.tag}: ${msg.content}`);
-        // });
+        const messages = await interaction.channel.messages.fetch(options);
+        if (messages.size === 0) break;
+        
+        messages.forEach((msg) => {
+          let currTime = msg.createdAt.getTime()
+          if(prevTime === null || currTime >= prevTime - 30 * 60 * 1000){
+            groupedText.push({'Author': msg.author.tag, 'Content': msg.content})
+          } else {
+            allMessages.push(groupedText)
+            groupedText = [{'Author': msg.author.tag, 'Content': msg.content}]
+          }
+          prevTime = currTime
+        })
+        lastMessageId = messages.last().id;
+      }
 
-        interaction.channel.send(`Fetched ${allMessages.length} messages. Check the console for details.`);
+      if(groupedText.length !== 0){
+        allMessages.push(groupedText)
+      }
+      
+      let totalMessages = 0;
+      allMessages.forEach((msgs) => {
+          totalMessages += msgs.length;
+      });
+
+      console.log(`Fetched ${totalMessages} messages. Check the console for details.`);
     }
 });
     
